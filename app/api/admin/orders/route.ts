@@ -13,6 +13,13 @@ const ALLOWED_STATUSES = [
   "cancelled",
 ];
 
+const STATUS_ORDER: Record<string, number> = {
+  pending: 0,
+  processing: 1,
+  shipped: 2,
+  delivered: 3,
+};
+
 async function getAuthorizedAdmin() {
   const supabase = await createAdminServerClient();
 
@@ -136,6 +143,19 @@ export async function PATCH(request: Request) {
     );
   }
 
+    // Prevent orders from moving backwards in the delivery process.
+  if (
+    status !== "cancelled" &&
+    STATUS_ORDER[status] < STATUS_ORDER[orderForEmail.status]
+  ) {
+    return NextResponse.json(
+      {
+        error: `An order cannot move backwards from ${orderForEmail.status} to ${status}.`,
+      },
+      { status: 409 }
+    );
+  }
+
   // Handle cancellation using the existing secure database function.
   if (status === "cancelled") {
     const { data: cancellationResult, error: cancellationError } =
@@ -182,10 +202,11 @@ export async function PATCH(request: Request) {
   }
 
   // Never allow a cancelled order to become active again.
-  const { data: updatedOrder, error: updateError } = await supabase
+    const { data: updatedOrder, error: updateError } = await supabase
     .from("orders")
     .update({ status })
     .eq("id", orderId)
+    .eq("status", orderForEmail.status)
     .neq("status", "cancelled")
     .select("id, status")
     .maybeSingle();
