@@ -158,7 +158,6 @@ export default function CheckoutPage() {
         // Update the bag count immediately in the storefront.
         window.dispatchEvent(new Event('serow-cart-updated'));
 
-        setItems([]);
         setOrderId(newOrderId);
 
 
@@ -182,28 +181,88 @@ export default function CheckoutPage() {
   }
 
   if (orderId) {
-    return (
-      <main style={styles.page}>
-        <section style={styles.card}>
-          <p style={styles.eyebrow}>SEROW · ORDER CONFIRMED</p>
-          <h1 style={styles.heading}>Thank you for your order.</h1>
-          <p>Your Cash on Delivery order has been placed successfully.</p>
-          <p style={styles.orderId}>
-            Order reference: <strong>{orderId}</strong>
+  return (
+    <main style={styles.page}>
+      <section style={{ ...styles.card, maxWidth: 700, margin: '40px auto' }}>
+        <p style={styles.eyebrow}>SEROW · ORDER CONFIRMED</p>
+
+        <h1 style={styles.heading}>Thank you for your order.</h1>
+
+        <p>
+          Your Cash on Delivery order has been placed successfully.
+        </p>
+
+        <p style={styles.orderId}>
+          Order reference: <strong>{orderId}</strong>
+        </p>
+
+        <div
+          style={{
+            background: '#f6f3ed',
+            padding: 16,
+            margin: '24px 0',
+            border: '1px solid #e3dccf',
+          }}
+        >
+          <strong>What happens next?</strong>
+          <p style={styles.muted}>
+            Your order is saved successfully. You can check its status and
+            tracking information anytime from your SEROW account.
           </p>
-          <p>You can view your order in your account.</p>
-          <Link href="/account/orders" style={styles.button}>
-            View my orders ↗
+          <p style={styles.muted}>
+            If you do not receive an email confirmation, you can still view
+            your confirmed order under My Orders.
+          </p>
+        </div>
+
+        <h2 style={styles.subheading}>Order summary</h2>
+
+        {items.map((item, index) => (
+          <div
+            key={`${item.product_id}-${item.color_id}-${item.size}-${index}`}
+            style={styles.item}
+          >
+            {item.image ? (
+              <img
+                src={item.image}
+                alt={item.product_name}
+                style={styles.image}
+              />
+            ) : null}
+
+            <div style={{ flex: 1 }}>
+              <strong>{item.product_name}</strong>
+              <p style={styles.muted}>
+                {item.color} · Size {item.size} · Qty {item.quantity}
+              </p>
+              <span>{money(item.price * item.quantity)}</span>
+            </div>
+          </div>
+        ))}
+
+        <div style={styles.total}>
+          <span>Estimated subtotal</span>
+          <strong>{money(subtotal)}</strong>
+        </div>
+
+        <p style={styles.muted}>
+          Shipping charges, if any, may be additional. Pay by Cash on
+          Delivery when your order arrives.
+        </p>
+
+        <Link href="/account/orders" style={styles.button}>
+          View my orders ↗
+        </Link>
+
+        <p style={{ marginTop: 22 }}>
+          <Link href="/" style={styles.textLink}>
+            Continue shopping
           </Link>
-          <p>
-            <Link href="/" style={styles.textLink}>
-              Continue shopping
-            </Link>
-          </p>
-        </section>
-      </main>
-    );
-  }
+        </p>
+      </section>
+    </main>
+  );
+}
 
   return (
     <main style={styles.page}>
