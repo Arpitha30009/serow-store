@@ -1,7 +1,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { sendSerowEmail, escapeEmailHtml } from "@/lib/email";
+import { escapeEmailHtml } from "@/lib/email";
 import { sendCustomerEmail } from "@/lib/customer-email";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,6 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
 
-    // Verify customer session.
     const {
       data: { user },
       error: authError,
@@ -23,7 +22,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read and validate order ID.
     let body: { orderId?: unknown };
 
     try {
@@ -47,7 +45,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Database function verifies ownership and restores stock.
     const { data, error } = await supabase.rpc(
       "cancel_customer_order",
       { p_order_id: orderId }
@@ -62,7 +59,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Prepare safe email details.
     const safeOrderId = escapeEmailHtml(orderId);
     const customerName =
       typeof user.user_metadata?.full_name === "string"
@@ -72,6 +68,7 @@ export async function POST(request: Request) {
     const safeName = escapeEmailHtml(customerName);
     const safeEmail = escapeEmailHtml(user.email);
 
+    // Customer cancellation confirmation.
     const customerEmailTask = sendCustomerEmail({
       to: user.email,
       subject: `SEROW Order Cancelled — ${orderId}`,
@@ -85,7 +82,7 @@ export async function POST(request: Request) {
             <p><strong>Order ID:</strong> ${safeOrderId}</p>
             <p><strong>Status:</strong> Cancelled</p>
           </div>
-          <p>If you have any questions, please contact
+          <p>For questions, contact
           <a href="mailto:serow.support@gmail.com">serow.support@gmail.com</a>.</p>
           <p>Thank you,<br/>Team SEROW</p>
         </div>
@@ -103,38 +100,51 @@ Thank you,
 Team SEROW`,
     });
 
-    // Notify admin through the existing Resend email service.
-    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
+    // Admin cancellation notification through SEROW Gmail SMTP.
+    const adminEmail =
+      process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
 
     const adminEmailTask = adminEmail
-      ? sendSerowEmail({
+      ? sendCustomerEmail({
           to: adminEmail,
-          subject: `SEROW Order Cancelled — ${orderId}`,
+          subject: `SEROW Admin Alert — Order Cancelled`,
           html: `
-            <div style="font-family:Arial,sans-serif;padding:25px">
+            <div style="font-family:Arial,sans-serif;padding:25px;color:#292820">
               <h2>SEROW — Order Cancellation</h2>
+              <p>A customer has cancelled an order.</p>
               <p><strong>Order ID:</strong> ${safeOrderId}</p>
               <p><strong>Customer:</strong> ${safeName}</p>
               <p><strong>Customer email:</strong> ${safeEmail}</p>
               <p><strong>Status:</strong> Cancelled</p>
             </div>
           `,
-          text: `SEROW order cancelled. Order ID: ${orderId}. Customer: ${customerName}. Email: ${user.email}.`,
-        })
-      : Promise.resolve();
+          text: `SEROW order cancelled.
 
-    const [customerEmailSent] = await Promise.all([
-      customerEmailTask,
-      adminEmailTask,
-    ]);
+Order ID: ${orderId}
+Customer: ${customerName}
+Customer email: ${user.email}
+Status: Cancelled`,
+        })
+      : Promise.resolve(false);
+
+    const [customerEmailSent, adminEmailSent] =
+      await Promise.all([
+        customerEmailTask,
+        adminEmailTask,
+      ]);
 
     if (!customerEmailSent) {
-      console.error("Cancellation succeeded, but customer email was not sent.");
+      console.error("Customer cancellation email was not sent.");
+    }
+
+    if (!adminEmailSent) {
+      console.error("Admin cancellation email was not sent.");
     }
 
     return NextResponse.json({
       result: data,
       customerEmailSent,
+      adminEmailSent,
     });
   } catch (error) {
     console.error("Unexpected cancellation error:", error);
