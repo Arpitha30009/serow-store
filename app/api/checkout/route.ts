@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendSerowEmail, escapeEmailHtml } from "@/lib/email";
+import { sendCustomerEmail } from "@/lib/customer-email";
 
 export async function POST(request: Request) {
   try {
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
       );
     }
 
-    
+
     const orderId = String(data?.order_id ?? "");
     const totalPaise = Number(data?.total_paise ?? 0);
     const formattedTotal = `₹${(totalPaise / 100).toFixed(2)}`;
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
     const safeAddress = escapeEmailHtml(shippingAddress);
 
     const emailTasks = [
-      sendSerowEmail({
+      sendCustomerEmail({
         to: user.email,
         subject: `SEROW Order Confirmed — ${orderId}`,
         html: `

@@ -137,7 +137,7 @@ export default function Storefront({
     };
   }, []);
 
-  
+
 
   // Restore the shopping bag after refresh.
 useEffect(() => {
@@ -1165,11 +1165,20 @@ const shown = useMemo(() => {
       </section>
 
       {/* Footer */}
+
+      {/* Footer */}
       <footer>
         <div className="footer-top">
           <SerowLogo footer />
           <p>Everyday style, elevated.</p>
-          <a href="mailto:hello@serow.example">Contact</a>
+
+          <div className="footer-contact">
+            <h3>Help Desk</h3>
+            <p>Have a question about your order or our products?</p>
+            <a href="mailto:serow.support@gmail.com">
+              serow.support@gmail.com ↗
+            </a>
+          </div>
         </div>
 
         <div className="footer-bottom">
@@ -1178,6 +1187,7 @@ const shown = useMemo(() => {
           <span>INDIA · INR ₹</span>
         </div>
       </footer>
+
 
       {/* Notifications */}
       {notice && (
