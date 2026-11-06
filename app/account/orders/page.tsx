@@ -840,15 +840,11 @@ export default function CustomerOrdersPage() {
 
           <div>
             <strong style={{ fontSize: 13 }}>
-              {history.previous_status === null &&
-              history.new_status === 'placed'
-                ? 'Order placed'
-                : `${history.previous_status
-                    ? history.previous_status.charAt(0).toUpperCase() +
-                      history.previous_status.slice(1)
-                    : 'Status'} → ${history.new_status.charAt(0).toUpperCase() +
-                      history.new_status.slice(1)}`}
-            </strong>
+  {history.new_status === 'placed'
+    ? 'Order placed'
+    : history.new_status.charAt(0).toUpperCase() +
+      history.new_status.slice(1)}
+</strong>
 
             <p
               style={{
