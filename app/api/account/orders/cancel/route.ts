@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendSerowEmail, escapeEmailHtml } from "@/lib/email";
+import { sendCustomerEmail } from "@/lib/customer-email";
 
 export const dynamic = "force-dynamic";
 
@@ -61,15 +62,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send cancellation confirmation after successful cancellation.
+    // Prepare safe email details.
     const safeOrderId = escapeEmailHtml(orderId);
     const customerName =
       typeof user.user_metadata?.full_name === "string"
         ? user.user_metadata.full_name
         : "Customer";
-    const safeName = escapeEmailHtml(customerName);
 
-    await sendSerowEmail({
+    const safeName = escapeEmailHtml(customerName);
+    const safeEmail = escapeEmailHtml(user.email);
+
+    const customerEmailTask = sendCustomerEmail({
       to: user.email,
       subject: `SEROW Order Cancelled — ${orderId}`,
       html: `
@@ -82,7 +85,8 @@ export async function POST(request: Request) {
             <p><strong>Order ID:</strong> ${safeOrderId}</p>
             <p><strong>Status:</strong> Cancelled</p>
           </div>
-          <p>If you have any questions, please contact our support team.</p>
+          <p>If you have any questions, please contact
+          <a href="mailto:serow.support@gmail.com">serow.support@gmail.com</a>.</p>
           <p>Thank you,<br/>Team SEROW</p>
         </div>
       `,
@@ -93,13 +97,45 @@ Your SEROW order cancellation has been processed successfully.
 Order ID: ${orderId}
 Status: Cancelled
 
-If you have any questions, please contact our support team.
+For questions, contact serow.support@gmail.com.
 
 Thank you,
 Team SEROW`,
     });
 
-    return NextResponse.json({ result: data });
+    // Notify admin through the existing Resend email service.
+    const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL?.trim();
+
+    const adminEmailTask = adminEmail
+      ? sendSerowEmail({
+          to: adminEmail,
+          subject: `SEROW Order Cancelled — ${orderId}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;padding:25px">
+              <h2>SEROW — Order Cancellation</h2>
+              <p><strong>Order ID:</strong> ${safeOrderId}</p>
+              <p><strong>Customer:</strong> ${safeName}</p>
+              <p><strong>Customer email:</strong> ${safeEmail}</p>
+              <p><strong>Status:</strong> Cancelled</p>
+            </div>
+          `,
+          text: `SEROW order cancelled. Order ID: ${orderId}. Customer: ${customerName}. Email: ${user.email}.`,
+        })
+      : Promise.resolve();
+
+    const [customerEmailSent] = await Promise.all([
+      customerEmailTask,
+      adminEmailTask,
+    ]);
+
+    if (!customerEmailSent) {
+      console.error("Cancellation succeeded, but customer email was not sent.");
+    }
+
+    return NextResponse.json({
+      result: data,
+      customerEmailSent,
+    });
   } catch (error) {
     console.error("Unexpected cancellation error:", error);
 
